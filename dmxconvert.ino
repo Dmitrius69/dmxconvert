@@ -3,7 +3,7 @@
 /*
     Name:       dmxconvert.ino
     Created:	08.04.2019 0:23:31
-    Author:     Den-ПК\Den
+    Author:     Den-ПК\Den Ivanov D.M.
 */
 
 // Define User Types below here or use a .h file
@@ -56,6 +56,9 @@ Here you have to select the output mode accordingly to the receiver type you are
 //
 #define DE 2
 #define LED 7
+#define SerialTxControl 3   //RS485 управляющий контакт на arduino pin 10
+#define RS485Transmit    HIGH
+#define RS485Receive     LOW 
 enum {
 	BREAK, STARTB, STARTADD, DATA
 };
@@ -83,7 +86,8 @@ void setup()
 	//control LED setup
 	pinMode(DE, OUTPUT); // enable Tx Rx
 	pinMode(LED, OUTPUT); // led DMX
-
+	pinMode(SerialTxControl, OUTPUT);
+	digitalWrite(SerialTxControl, RS485Receive);
 	//start DMX receive
 	init_USART();
 
@@ -92,6 +96,37 @@ void setup()
 // Add the main program code into the continuous loop() function
 void loop()
 {
+
+	volatile unsigned int address1, address2, address3, address4, address5, address6, address7, address8, address9;
+	
+	cli(); //disable interrupt
+	
+	address1 = 1;
+	address2 = 0;
+	address3 = 0;
+	address4 = 0;
+	address5 = 0;
+	address6 = 0;
+	address7 = 0;
+	address8 = 0;
+	address9 = 0;
+	//start to get DMX flow begin from 1 
+	/*Calculation of dmxStartAddress*/
+	dmxStartAddress = (address1 * 1) + (address2 * 2) + (address3 * 4) + (address4 * 8) + (address5 * 16) + (address6 * 32) + (address7 * 64) + (address8 * 128) + (address9 * 256);
+
+	if (dmxStartAddress == 0) { //If all dipswitches are 0 
+		demo();                //call the demo function
+	}
+
+	else if (dmxStartAddress >= 509)  //The receiver manages 4 channels, so you can't set a start address above 509;
+		dmxStartAddress = 509;
+
+	digitalWrite(DE, LOW);
+
+
+	sei(); //enable global interrupt
+
+	for (;;) {}
 
 
 }
@@ -102,7 +137,7 @@ SIGNAL(USART1_RX_vect)
 	int temp = UCSR1A;
 	int dmxByte = UDR1;
 
-
+	digitalWrite(LED, HIGH);
 	if (temp&(1 << DOR1))	// Data Overrun?
 	{
 		dmxStatus = BREAK;	// wait for reset (BREAK)
@@ -230,3 +265,72 @@ SIGNAL(USART1_RX_vect)
 tail:
 	asm("nop");
 }
+
+
+//test demo funtion
+void demo()
+{
+	int bright;
+	if (OUTPUT_MODE == MOSFET)
+	{
+		for (;;)
+		{
+
+			for (bright = 0; bright < 255; bright++)	// infinite loop
+			{
+				analogWrite(PWMpin1, bright);
+				analogWrite(PWMpin2, bright);
+				analogWrite(PWMpin3, bright);
+				analogWrite(PWMpin4, bright);
+				delay(10);
+			}
+
+			for (bright = 255; bright >= 0; bright--)	// infinite loop
+			{
+				analogWrite(PWMpin1, bright);
+				analogWrite(PWMpin2, bright);
+				analogWrite(PWMpin3, bright);
+				analogWrite(PWMpin4, bright);
+				delay(10);
+			}
+
+			analogWrite(PWMpin1, 255);
+			analogWrite(PWMpin3, 255);
+			delay(10);
+			analogWrite(PWMpin1, 0);
+			analogWrite(PWMpin3, 0);
+			analogWrite(PWMpin2, 255);
+			analogWrite(PWMpin4, 255);
+			delay(10);
+		}
+	}
+	else if (OUTPUT_MODE == RELAY)
+	{
+		for (;;)
+		{
+			analogWrite(PWMpin1, 255);
+			analogWrite(PWMpin2, 0);
+			analogWrite(PWMpin3, 0);
+			analogWrite(PWMpin4, 0);
+			delay(1000);
+			analogWrite(PWMpin1, 0);
+			analogWrite(PWMpin2, 255);
+			analogWrite(PWMpin3, 0);
+			analogWrite(PWMpin4, 0);
+
+			delay(1000);
+			analogWrite(PWMpin1, 0);
+			analogWrite(PWMpin2, 0);
+			analogWrite(PWMpin3, 255);
+			analogWrite(PWMpin4, 0);
+
+			delay(1000);
+			analogWrite(PWMpin1, 0);
+			analogWrite(PWMpin2, 0);
+			analogWrite(PWMpin3, 0);
+			analogWrite(PWMpin4, 255);
+			delay(1000);
+		}
+	}
+}
+
