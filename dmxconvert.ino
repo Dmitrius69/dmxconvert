@@ -128,7 +128,7 @@ void loop()
 
 	for (;;) {}
 
-
+	 
 }
 
 //UART processing function
@@ -138,6 +138,7 @@ SIGNAL(USART1_RX_vect)
 	int dmxByte = UDR1;
 
 	digitalWrite(LED, HIGH);
+
 	if (temp&(1 << DOR1))	// Data Overrun?
 	{
 		dmxStatus = BREAK;	// wait for reset (BREAK)
