@@ -69,21 +69,21 @@ volatile unsigned int dmxCount = 0;
 volatile unsigned int ch1, ch2, ch3, ch4;
 volatile unsigned int MASTER;
 
-/*Initialization of USART*/
+/*Инициализируем USART*/
 void init_USART()
 {
-	UBRR1L = (uint8_t)(F_CPU / (BAUD_RATE * 16L) - 1); //Set Baud rate at 250 kbit/s
+	UBRR1L = (uint8_t)(F_CPU / (BAUD_RATE * 16L) - 1); //устанавливаем скорость  250 kbit/s
 	UBRR1H = (F_CPU / (BAUD_RATE * 16L) - 1) >> 8;     // 
 	UDR1 = 0;
-	UCSR1A = 0;	                        // clear error flags, disable U2X and MPCM
-	UCSR1B = (1 << RXCIE1) | (1 << RXEN1);	// Enable receiver
+	UCSR1A = 0;	                            // отчищаем флажки ошибок, запрещаем U2X и MPCM
+	UCSR1B = (1 << RXCIE1) | (1 << RXEN1);	// Включаем на прием
 	UCSR1C = (1 << USBS1) | (3 << UCSZ10);	// 8bit 2 stop
 }
 
-// The setup() function runs once each time the micro-controller starts
+//setup() функция запускается один раз при холодном старте икроконтроллера
 void setup()
 {
-	//control LED setup
+	//инициализируем инфо диоды
 	pinMode(DE, OUTPUT); // enable Tx Rx
 	pinMode(LED, OUTPUT); // led DMX
 	pinMode(SerialTxControl, OUTPUT);
@@ -93,14 +93,15 @@ void setup()
 
 }
 
-// Add the main program code into the continuous loop() function
+//loop() - основной цикл прораммы
 void loop()
 {
 
 	volatile unsigned int address1, address2, address3, address4, address5, address6, address7, address8, address9;
 	
 	cli(); //disable interrupt
-	
+	//переменный для установки адреса с которого следует слушать DMX поток
+	//по умолчанию равен 1, если адрес равен 0, запускается функция demo()
 	address1 = 1;
 	address2 = 0;
 	address3 = 0;
@@ -111,7 +112,7 @@ void loop()
 	address8 = 0;
 	address9 = 0;
 	//start to get DMX flow begin from 1 
-	/*Calculation of dmxStartAddress*/
+	/*Вычисление dmxStartAddress*/
 	dmxStartAddress = (address1 * 1) + (address2 * 2) + (address3 * 4) + (address4 * 8) + (address5 * 16) + (address6 * 32) + (address7 * 64) + (address8 * 128) + (address9 * 256);
 
 	if (dmxStartAddress == 0) { //If all dipswitches are 0 
@@ -131,11 +132,11 @@ void loop()
 	 
 }
 
-//UART processing function
+//UART обработка прерывания приема данных
 SIGNAL(USART1_RX_vect)
 {
-	int temp = UCSR1A;
-	int dmxByte = UDR1;
+	int temp = UCSR1A;  //получаем байт состояния
+	int dmxByte = UDR1; //получаем данные из регистра данных 
 
 	digitalWrite(LED, HIGH);
 
@@ -149,8 +150,8 @@ SIGNAL(USART1_RX_vect)
 	if (temp&(1 << FE1))	//BREAK or FramingError?
 	{
 
-		dmxCount = 0;	// reset byte counter
-		dmxStatus = STARTB;	// let's think it's a BREAK ;-) ->wait for start byte
+		dmxCount = 0;	    // сбрасываем счетчик данных
+		dmxStatus = STARTB;	// считаем, что пришел сигнал BREAK ;-) ->ждем стартовый байт
 		UCSR1A &= ~(1 << FE1);
 		goto tail;
 	}
